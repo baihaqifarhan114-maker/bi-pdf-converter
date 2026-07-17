@@ -1,0 +1,467 @@
+/* ── Reset & Base ─────────────────────────────────────────────────────── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* BI Institutional Colors */
+    --bi-blue: #005A9C;
+    --bi-blue-dark: #00467a;
+    --bi-blue-light: #e6f0f9;
+    
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    
+    --border-color: #e2e8f0;
+    --border-focus: #94a3b8;
+    
+    --success: #059669;
+    --success-bg: #d1fae5;
+    --error: #dc2626;
+    --error-bg: #fee2e2;
+    
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    
+    --transition: 0.2s ease-in-out;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+.header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.header-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.logo-section {
+    flex-shrink: 0;
+}
+
+.bi-logo {
+    height: 48px;
+    width: auto;
+    display: block;
+}
+
+.title-section h1 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--bi-blue);
+    margin-bottom: 0.25rem;
+}
+
+.title-section .subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* ── App Container ────────────────────────────────────────────────────── */
+.app-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.main-content {
+    width: 100%;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+/* ── Upload Section ───────────────────────────────────────────────────── */
+.upload-section {
+    padding: 2rem;
+}
+
+.upload-zone {
+    border: 2px dashed var(--border-focus);
+    border-radius: var(--radius-md);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    background: var(--bg-page);
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+    border-color: var(--bi-blue);
+    background: var(--bi-blue-light);
+}
+
+.upload-icon {
+    color: var(--bi-blue);
+    margin-bottom: 1rem;
+}
+
+.upload-icon svg {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+    display: block;
+}
+
+.upload-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.upload-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.upload-hint {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* ── File Preview ─────────────────────────────────────────────────────── */
+.file-preview {
+    margin-top: 1.5rem;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-page);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.file-icon-wrapper {
+    color: var(--bi-blue);
+    flex-shrink: 0;
+}
+
+.file-icon-wrapper svg {
+    width: 24px;
+    height: 24px;
+}
+
+.file-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-size {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.125rem;
+}
+
+.btn-remove {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.btn-remove:hover {
+    background: var(--error-bg);
+    color: var(--error);
+}
+
+.btn-remove svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.btn-primary {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--bi-blue);
+    color: white;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background: var(--bi-blue-dark);
+}
+
+.btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-page);
+    border-color: var(--border-focus);
+}
+
+/* ── Processing Section ───────────────────────────────────────────────── */
+.processing-content {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1.5rem;
+    border: 3px solid var(--bi-blue-light);
+    border-top-color: var(--bi-blue);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.processing-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--bi-blue);
+    margin-bottom: 0.5rem;
+}
+
+.processing-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-color);
+    overflow: hidden;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--bi-blue);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* ── Success Section ──────────────────────────────────────────────────── */
+.success-content {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.success-icon {
+    color: var(--success);
+    margin-bottom: 1rem;
+}
+
+.success-icon svg {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto;
+}
+
+.success-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.success-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+.stats-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    text-align: left;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-page);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--bi-blue);
+}
+
+/* ── Error Section ────────────────────────────────────────────────────── */
+.error-content {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.error-icon {
+    color: var(--error);
+    margin-bottom: 1rem;
+}
+
+.error-icon svg {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto;
+}
+
+.error-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--error);
+    margin-bottom: 0.5rem;
+}
+
+.error-message {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.footer {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    padding: 1.5rem 0;
+    margin-top: auto;
+}
+
+.footer-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    text-align: center;
+}
+
+.footer p {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.footer .footer-subtext {
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .header-container {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .bi-logo {
+        margin: 0 auto;
+    }
+    
+    .app-container {
+        padding: 1.5rem 1rem;
+    }
+    
+    .upload-section {
+        padding: 1.5rem;
+    }
+}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Konversi Statement - KAPK Bank Indonesia</title>
+    <meta name="description" content="Sistem Konversi Statement Kartu Kredit Mandiri">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Institutional Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo-section">
+                <img src="{{ url_for('static', filename='bi-logo.png') }}" alt="Logo Bank Indonesia" class="bi-logo">
+            </div>
+            <div class="title-section">
+                <h1>Kelompok Asesmen dan Pengendalian Keuangan (KAPK)</h1>
+                <p class="subtitle">Sistem Ekstraksi Data Statement Kartu Kredit Mandiri</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Area -->
+            <div class="card upload-section" id="uploadSection">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7 16A4 4 0 0 1 7 8h1.26a5.5 5.5 0 0 1 10.48 2H19a3 3 0 0 1 0 6M12 12v9m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="upload-title">Unggah Dokumen PDF</h2>
+                    <p class="upload-subtitle">Tarik dan lepas file ke area ini, atau klik untuk memilih file</p>
+                    <div class="upload-hint">
+                        Format yang didukung: Dokumen Tagihan Kartu Kredit Bank Mandiri (.pdf)
+                    </div>
+                    <input type="file" id="fileInput" accept=".pdf" hidden>
+                </div>
+
+                <!-- File Selected Preview -->
+                <div class="file-preview" id="filePreview" style="display: none;">
+                    <div class="file-info">
+                        <div class="file-icon-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="file-details">
+                            <p class="file-name" id="fileName">—</p>
+                            <p class="file-size" id="fileSize">—</p>
+                        </div>
+                        <button class="btn-remove" id="btnRemove" title="Hapus file">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <button class="btn-primary btn-convert" id="btnConvert">
+                        Mulai Proses Ekstraksi
+                    </button>
+                </div>
+            </div>
+
+            <!-- Processing State -->
+            <div class="card processing-section" id="processingSection" style="display: none;">
+                <div class="processing-content">
+                    <div class="spinner"></div>
+                    <h3 class="processing-title">Sistem Sedang Memproses Dokumen</h3>
+                    <p class="processing-subtitle" id="processingText">Harap tunggu, sedang mengekstrak data dari dokumen PDF...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Success State -->
+            <div class="card success-section" id="successSection" style="display: none;">
+                <div class="success-content">
+                    <div class="success-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="success-title">Ekstraksi Dokumen Berhasil</h3>
+                    <p class="success-subtitle">File Excel telah berhasil dibuat dan diunduh otomatis ke perangkat Anda.</p>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Pemegang Kartu</span>
+                            <span class="stat-value" id="statCardholders">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Transaksi</span>
+                            <span class="stat-value" id="statTransactions">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Baris Data</span>
+                            <span class="stat-value" id="statRows">0</span>
+                        </div>
+                    </div>
+                    
+                    <button class="btn-secondary btn-another" id="btnAnother">
+                        Proses Dokumen Lainnya
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div class="card error-section" id="errorSection" style="display: none;">
+                <div class="error-content">
+                    <div class="error-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                    <h3 class="error-title">Terjadi Kesalahan Sistem</h3>
+                    <p class="error-message" id="errorMessage">—</p>
+                    <button class="btn-secondary btn-retry" id="btnRetry">Kembali</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2026 Kelompok Asesmen dan Pengendalian Keuangan (KAPK) - Bank Indonesia</p>
+            <p class="footer-subtext">Aplikasi Internal Konversi Statement Kartu Kredit Mandiri ke Excel</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
