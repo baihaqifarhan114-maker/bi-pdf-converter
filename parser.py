@@ -29,6 +29,7 @@ class CardholderRecord:
     """Represents one cardholder's complete statement."""
     nama: str
     nomor_kartu: str
+    limit_kartu_kredit: Optional[float] = None
     tagihan_bulan_lalu: Optional[float] = None
     tagihan_bulan_lalu_cr: bool = False
     sub_total: Optional[float] = None
@@ -65,6 +66,9 @@ RE_SUBTOTAL = re.compile(
 
 # Card number pattern: XXXX-XXXX-XXXX-XXXX
 RE_CARD_NUMBER = re.compile(r'^(\d{4}-\d{4}-\d{4}-\d{4})\s*$')
+
+# Credit limit line: e.g. "50,000,000 50,010,000 0 LANCAR" or "50,000,000 236,724 CR 0 LANCAR"
+RE_CREDIT_LIMIT = re.compile(r'^([\d,]+)\s+[\d,]+\s*(?:CR)?\s+\d+\s+LANCAR')
 
 # Date pattern at start of line (to detect transaction start)
 RE_DATE_START = re.compile(r'^\d{2}/\d{2}/\d{2}\s')
@@ -329,9 +333,18 @@ def parse_pdf(filepath: str) -> list[CardholderRecord]:
                 # Extract cardholder info
                 name, card_number = extract_cardholder_info(lines)
                 
+                # Extract credit limit from billing summary
+                credit_limit = None
+                for line in lines:
+                    m_limit = RE_CREDIT_LIMIT.match(line.strip())
+                    if m_limit:
+                        credit_limit = parse_amount(m_limit.group(1))
+                        break
+                
                 current_record = CardholderRecord(
                     nama=name,
-                    nomor_kartu=card_number
+                    nomor_kartu=card_number,
+                    limit_kartu_kredit=credit_limit
                 )
                 
                 # Parse transactions
@@ -359,6 +372,7 @@ def generate_excel(records: list[CardholderRecord], output_path: str) -> dict:
     Creates a clean flat table suitable for pivot tables with columns:
     - Nama Pemegang Kartu
     - Nomor Kartu
+    - Limit Kartu Kredit
     - Tanggal Transaksi
     - Tanggal Pembukuan
     - Keterangan
@@ -401,12 +415,15 @@ def generate_excel(records: list[CardholderRecord], output_path: str) -> dict:
     headers = [
         'Nama Pemegang Kartu',
         'Nomor Kartu',
+        'Limit Kartu Kredit (Rp)',
         'Tanggal Transaksi',
         'Tanggal Pembukuan',
         'Keterangan',
         'Jumlah (Rp)',
         'Tipe'
     ]
+    
+    NUM_COLS = len(headers)
     
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
@@ -416,7 +433,7 @@ def generate_excel(records: list[CardholderRecord], output_path: str) -> dict:
         cell.border = thin_border
     
     # ── Column Widths ──
-    col_widths = [25, 22, 18, 18, 45, 18, 8]
+    col_widths = [25, 22, 22, 18, 18, 45, 18, 8]
     for i, width in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     
@@ -426,24 +443,31 @@ def generate_excel(records: list[CardholderRecord], output_path: str) -> dict:
     total_cardholders = len(records)
     
     for record in records:
+        limit_val = record.limit_kartu_kredit  # repeated on every row for pivot
+        
         # TAGIHAN BULAN LALU row
         if record.tagihan_bulan_lalu is not None:
             tipe = 'CR' if record.tagihan_bulan_lalu_cr else 'DB'
             ws.cell(row=row_num, column=1, value=record.nama).font = section_font
             ws.cell(row=row_num, column=2, value=record.nomor_kartu).font = section_font
-            ws.cell(row=row_num, column=3, value='').font = section_font
+            c_limit = ws.cell(row=row_num, column=3, value=limit_val)
+            c_limit.font = section_font
+            c_limit.number_format = '#,##0'
+            c_limit.alignment = amount_alignment
             ws.cell(row=row_num, column=4, value='').font = section_font
-            ws.cell(row=row_num, column=5, value='TAGIHAN BULAN LALU').font = section_font
-            ws.cell(row=row_num, column=6, value=record.tagihan_bulan_lalu).font = section_font
-            ws.cell(row=row_num, column=6).number_format = '#,##0'
-            ws.cell(row=row_num, column=6).alignment = amount_alignment
-            ws.cell(row=row_num, column=7, value=tipe).font = section_font
+            ws.cell(row=row_num, column=5, value='').font = section_font
+            ws.cell(row=row_num, column=6, value='TAGIHAN BULAN LALU').font = section_font
+            ws.cell(row=row_num, column=7, value=record.tagihan_bulan_lalu).font = section_font
+            ws.cell(row=row_num, column=7).number_format = '#,##0'
+            ws.cell(row=row_num, column=7).alignment = amount_alignment
+            ws.cell(row=row_num, column=8, value=tipe).font = section_font
             
-            for col in range(1, 8):
+            for col in range(1, NUM_COLS + 1):
                 ws.cell(row=row_num, column=col).fill = section_fill
                 ws.cell(row=row_num, column=col).border = thin_border
                 ws.cell(row=row_num, column=col).alignment = data_alignment
-            ws.cell(row=row_num, column=6).alignment = amount_alignment
+            ws.cell(row=row_num, column=3).alignment = amount_alignment
+            ws.cell(row=row_num, column=7).alignment = amount_alignment
             
             row_num += 1
         
@@ -455,20 +479,25 @@ def generate_excel(records: list[CardholderRecord], output_path: str) -> dict:
             
             ws.cell(row=row_num, column=1, value=record.nama).font = font
             ws.cell(row=row_num, column=2, value=record.nomor_kartu).font = font
-            ws.cell(row=row_num, column=3, value=tx.tanggal_transaksi).font = font
-            ws.cell(row=row_num, column=4, value=tx.tanggal_pembukuan).font = font
-            ws.cell(row=row_num, column=5, value=tx.keterangan).font = font
-            ws.cell(row=row_num, column=6, value=tx.jumlah).font = font
-            ws.cell(row=row_num, column=6).number_format = '#,##0'
-            ws.cell(row=row_num, column=6).alignment = amount_alignment
-            ws.cell(row=row_num, column=7, value=tipe).font = font
+            c_limit = ws.cell(row=row_num, column=3, value=limit_val)
+            c_limit.font = font
+            c_limit.number_format = '#,##0'
+            c_limit.alignment = amount_alignment
+            ws.cell(row=row_num, column=4, value=tx.tanggal_transaksi).font = font
+            ws.cell(row=row_num, column=5, value=tx.tanggal_pembukuan).font = font
+            ws.cell(row=row_num, column=6, value=tx.keterangan).font = font
+            ws.cell(row=row_num, column=7, value=tx.jumlah).font = font
+            ws.cell(row=row_num, column=7).number_format = '#,##0'
+            ws.cell(row=row_num, column=7).alignment = amount_alignment
+            ws.cell(row=row_num, column=8, value=tipe).font = font
             
-            for col in range(1, 8):
+            for col in range(1, NUM_COLS + 1):
                 ws.cell(row=row_num, column=col).border = thin_border
                 ws.cell(row=row_num, column=col).alignment = data_alignment
                 if is_even:
                     ws.cell(row=row_num, column=col).fill = even_fill
-            ws.cell(row=row_num, column=6).alignment = amount_alignment
+            ws.cell(row=row_num, column=3).alignment = amount_alignment
+            ws.cell(row=row_num, column=7).alignment = amount_alignment
             
             row_num += 1
             total_transactions += 1
@@ -478,25 +507,30 @@ def generate_excel(records: list[CardholderRecord], output_path: str) -> dict:
             tipe = 'CR' if record.sub_total_cr else 'DB'
             ws.cell(row=row_num, column=1, value=record.nama).font = section_font
             ws.cell(row=row_num, column=2, value=record.nomor_kartu).font = section_font
-            ws.cell(row=row_num, column=3, value='').font = section_font
+            c_limit = ws.cell(row=row_num, column=3, value=limit_val)
+            c_limit.font = section_font
+            c_limit.number_format = '#,##0'
+            c_limit.alignment = amount_alignment
             ws.cell(row=row_num, column=4, value='').font = section_font
-            ws.cell(row=row_num, column=5, value='SUB-TOTAL').font = section_font
-            ws.cell(row=row_num, column=6, value=record.sub_total).font = section_font
-            ws.cell(row=row_num, column=6).number_format = '#,##0'
-            ws.cell(row=row_num, column=6).alignment = amount_alignment
-            ws.cell(row=row_num, column=7, value=tipe).font = section_font
+            ws.cell(row=row_num, column=5, value='').font = section_font
+            ws.cell(row=row_num, column=6, value='SUB-TOTAL').font = section_font
+            ws.cell(row=row_num, column=7, value=record.sub_total).font = section_font
+            ws.cell(row=row_num, column=7).number_format = '#,##0'
+            ws.cell(row=row_num, column=7).alignment = amount_alignment
+            ws.cell(row=row_num, column=8, value=tipe).font = section_font
             
-            for col in range(1, 8):
+            for col in range(1, NUM_COLS + 1):
                 ws.cell(row=row_num, column=col).fill = section_fill
                 ws.cell(row=row_num, column=col).border = thin_border
                 ws.cell(row=row_num, column=col).alignment = data_alignment
-            ws.cell(row=row_num, column=6).alignment = amount_alignment
+            ws.cell(row=row_num, column=3).alignment = amount_alignment
+            ws.cell(row=row_num, column=7).alignment = amount_alignment
             
             row_num += 1
     
     # ── Freeze Panes & Auto-filter ──
     ws.freeze_panes = 'A2'
-    ws.auto_filter.ref = f'A1:G{row_num - 1}'
+    ws.auto_filter.ref = f'A1:H{row_num - 1}'
     
     # ── Save ──
     wb.save(output_path)
