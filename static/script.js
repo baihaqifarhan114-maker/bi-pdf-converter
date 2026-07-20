@@ -149,8 +149,22 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Unknown error');
+                let errorMsg = `Server error (${response.status})`;
+                try {
+                    const data = await response.json();
+                    errorMsg = data.error || errorMsg;
+                } catch {
+                    // Response is not JSON (e.g. Vercel timeout HTML page)
+                    const text = await response.text().catch(() => '');
+                    if (response.status === 504 || text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+                        errorMsg = 'Proses terlalu lama (timeout). File PDF mungkin terlalu besar untuk diproses di server. Coba gunakan versi lokal.';
+                    } else if (response.status === 413) {
+                        errorMsg = 'File terlalu besar. Maksimal ukuran file adalah 100MB.';
+                    } else {
+                        errorMsg = `Server error (${response.status}): ${text.substring(0, 200)}`;
+                    }
+                }
+                throw new Error(errorMsg);
             }
 
             // Get stats from headers
