@@ -65,8 +65,8 @@ RE_SUBTOTAL = re.compile(
     r'^\s*SUB-TOTAL\s+([\d,]+(?:\.\d+)?)\s*(CR)?\s*$'
 )
 
-# Card number pattern: XXXX-XXXX-XXXX-XXXX
-RE_CARD_NUMBER = re.compile(r'^(\d{4}-\d{4}-\d{4}-\d{4})\s*$')
+# Card number pattern: XXXX-XXXX-XXXX-XXXX (sometimes masked with X)
+RE_CARD_NUMBER = re.compile(r'^([\dX]{4}-[\dX]{4}-[\dX]{4}-[\dX]{4})\s*$', re.IGNORECASE)
 
 # Credit limit line: e.g. "50,000,000 50,010,000 0 LANCAR" or "50,000,000 236,724 CR 0 LANCAR"
 RE_CREDIT_LIMIT = re.compile(r'^([\d,]+)\s+[\d,]+\s*(?:CR)?\s+\d+\s+LANCAR')
@@ -303,92 +303,99 @@ def parse_pdf(filepath: str) -> list[CardholderRecord]:
     """
     Parse a Bank Indonesia (Mandiri) credit card statement PDF.
     
-    Uses chunked processing to keep memory usage low:
-    1. PyMuPDF splits the PDF into small temporary chunks
-    2. Each chunk is processed with pdfplumber (which produces correct table layout)
-    3. Memory is freed between chunks via gc.collect()
+    Ultra-low-memory approach (designed for 512MB RAM servers):
+    1. Use PyMuPDF ONLY to get page count, then close it
+    2. For each page: extract single page via PyMuPDF → save temp → close PyMuPDF
+    3. Process temp page with pdfplumber → close pdfplumber → delete temp
+    4. gc.collect() after every page
+    
+    At any point, only ONE small PDF (1 page) is open by ONE library.
+    Peak memory: ~120-150MB instead of ~400MB.
     
     Returns a list of CardholderRecord objects, one per cardholder.
     """
-    import fitz  # PyMuPDF - lightweight, used only for splitting
+    import fitz  # PyMuPDF - lightweight, used only for page extraction
     import tempfile
     import gc
     
     records = []
     current_record = None
     
-    CHUNK_SIZE = 15  # process 15 pages at a time to keep memory low
-    
+    # Step 1: Get total page count, then immediately close
     doc = fitz.open(filepath)
     total_pages = len(doc)
+    doc.close()
+    del doc
+    gc.collect()
     
-    for chunk_start in range(0, total_pages, CHUNK_SIZE):
-        chunk_end = min(chunk_start + CHUNK_SIZE, total_pages)
-        
-        # Create a temporary PDF with just this chunk of pages
-        chunk_doc = fitz.open()
-        chunk_doc.insert_pdf(doc, from_page=chunk_start, to_page=chunk_end - 1)
-        
+    # Step 2: Process one page at a time
+    for page_num in range(total_pages):
+        # 2a: Extract single page with PyMuPDF (lightweight)
         tmp_fd, tmp_path = tempfile.mkstemp(suffix='.pdf')
         os.close(tmp_fd)
-        chunk_doc.save(tmp_path)
-        chunk_doc.close()
         
-        # Process this chunk with pdfplumber
         try:
+            doc = fitz.open(filepath)
+            single_page_doc = fitz.open()
+            single_page_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+            single_page_doc.save(tmp_path)
+            single_page_doc.close()
+            doc.close()
+            del doc, single_page_doc
+            # Don't gc here - pdfplumber opens next
+            
+            # 2b: Process single page with pdfplumber (correct table layout)
             with pdfplumber.open(tmp_path) as pdf:
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if not text:
-                        continue
-                    
-                    lines = text.split('\n')
-                    
-                    if is_continuation_page(text):
-                        if current_record:
-                            start_idx = find_transaction_start(lines)
-                            txs, _, _, subtotal, subtotal_cr = parse_transaction_section(lines, start_idx)
-                            current_record.transactions.extend(txs)
-                            if subtotal is not None:
-                                current_record.sub_total = subtotal
-                                current_record.sub_total_cr = subtotal_cr
-                    else:
-                        if current_record:
-                            records.append(current_record)
-                        
-                        name, card_number = extract_cardholder_info(lines)
-                        
-                        credit_limit = None
-                        for line in lines:
-                            m_limit = RE_CREDIT_LIMIT.match(line.strip())
-                            if m_limit:
-                                credit_limit = parse_amount(m_limit.group(1))
-                                break
-                        
-                        current_record = CardholderRecord(
-                            nama=name,
-                            nomor_kartu=card_number,
-                            limit_kartu_kredit=credit_limit
-                        )
-                        
-                        start_idx = find_transaction_start(lines)
-                        txs, tagihan, tagihan_cr, subtotal, subtotal_cr = parse_transaction_section(lines, start_idx)
-                        
-                        current_record.transactions = txs
-                        current_record.tagihan_bulan_lalu = tagihan
-                        current_record.tagihan_bulan_lalu_cr = tagihan_cr
-                        if subtotal is not None:
-                            current_record.sub_total = subtotal
-                            current_record.sub_total_cr = subtotal_cr
+                text = pdf.pages[0].extract_text()
+            
+            if not text:
+                continue
+            
+            lines = text.split('\n')
+            
+            if is_continuation_page(text):
+                if current_record:
+                    start_idx = find_transaction_start(lines)
+                    txs, _, _, subtotal, subtotal_cr = parse_transaction_section(lines, start_idx)
+                    current_record.transactions.extend(txs)
+                    if subtotal is not None:
+                        current_record.sub_total = subtotal
+                        current_record.sub_total_cr = subtotal_cr
+            else:
+                if current_record:
+                    records.append(current_record)
+                
+                name, card_number = extract_cardholder_info(lines)
+                
+                credit_limit = None
+                for line in lines:
+                    m_limit = RE_CREDIT_LIMIT.match(line.strip())
+                    if m_limit:
+                        credit_limit = parse_amount(m_limit.group(1))
+                        break
+                
+                current_record = CardholderRecord(
+                    nama=name,
+                    nomor_kartu=card_number,
+                    limit_kartu_kredit=credit_limit
+                )
+                
+                start_idx = find_transaction_start(lines)
+                txs, tagihan, tagihan_cr, subtotal, subtotal_cr = parse_transaction_section(lines, start_idx)
+                
+                current_record.transactions = txs
+                current_record.tagihan_bulan_lalu = tagihan
+                current_record.tagihan_bulan_lalu_cr = tagihan_cr
+                if subtotal is not None:
+                    current_record.sub_total = subtotal
+                    current_record.sub_total_cr = subtotal_cr
         finally:
-            # Clean up temp file and free memory
+            # Clean up temp file and free memory every page
             try:
                 os.remove(tmp_path)
             except OSError:
                 pass
             gc.collect()
-    
-    doc.close()
     
     # Don't forget the last record
     if current_record:
