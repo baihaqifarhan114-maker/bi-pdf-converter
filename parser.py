@@ -78,6 +78,10 @@ RE_DATE_START = re.compile(r'^\d{2}/\d{2}/\d{2}\s')
 RE_SKIP_PATTERNS = [
     re.compile(r'^\.\.\.\.\.\.\.\s*Transaksi di lanjutkan'),
     re.compile(r'^1\s+(?:Apabila|Selain|Sesuai|Jaga)'),
+    re.compile(r'Apabila data Anda mengalami'),
+    re.compile(r'Selain lembar tagihan ini'),
+    re.compile(r'Sesuai Undang-Undang'),
+    re.compile(r'Jaga selalu kerahasiaan'),
     re.compile(r'^New Livin'),
     re.compile(r'^kartu kredit'),  # continuation of disclaimer
     re.compile(r'^kredit, kode OTP'),
