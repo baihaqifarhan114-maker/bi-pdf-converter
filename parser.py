@@ -65,8 +65,8 @@ RE_SUBTOTAL = re.compile(
     r'^\s*SUB-TOTAL\s+([\d,]+(?:\.\d+)?)\s*(CR)?\s*$'
 )
 
-# Card number pattern: XXXX-XXXX-XXXX-XXXX (sometimes masked with X)
-RE_CARD_NUMBER = re.compile(r'^([\dX]{4}-[\dX]{4}-[\dX]{4}-[\dX]{4})\s*$', re.IGNORECASE)
+# Card number pattern: XXXX-XXXX-XXXX-XXXX (sometimes masked with X, can have spaces or hyphens)
+RE_CARD_NUMBER = re.compile(r'^([\dX]{4}[\s\-]*[\dX]{4}[\s\-]*[\dX]{4}[\s\-]*[\dX]{4})\s*$', re.IGNORECASE)
 
 # Credit limit line: e.g. "50,000,000 50,010,000 0 LANCAR" or "50,000,000 236,724 CR 0 LANCAR"
 RE_CREDIT_LIMIT = re.compile(r'^([\d,]+)\s+[\d,]+\s*(?:CR)?\s+\d+\s+LANCAR')
@@ -130,6 +130,31 @@ RE_SKIP_PATTERNS = [
 ]
 
 
+# Patterns that unambiguously indicate the start of the page footer
+RE_FOOTER_PATTERNS = [
+    re.compile(r'^\.\.\.\.\.\.\.\s*Transaksi di lanjutkan', re.IGNORECASE),
+    re.compile(r'^1\s+(?:Apabila|Selain|Sesuai|Jaga)', re.IGNORECASE),
+    re.compile(r'Apabila data Anda mengalami', re.IGNORECASE),
+    re.compile(r'Selain lembar tagihan ini', re.IGNORECASE),
+    re.compile(r'Sesuai Undang-Undang', re.IGNORECASE),
+    re.compile(r'Jaga selalu kerahasiaan', re.IGNORECASE),
+    re.compile(r'^Pagu Kredit', re.IGNORECASE),
+    re.compile(r'^Credit Limit', re.IGNORECASE),
+    re.compile(r'^\d+[,.]?\d*[,.]?\d*\s+\d+[,.]?\d*[,.]?\d*\s+\d+\s+LANCAR', re.IGNORECASE),
+    re.compile(r'^Tagihan Baru', re.IGNORECASE),
+    re.compile(r'^New balance', re.IGNORECASE),
+    re.compile(r'^Pembayaran Minimum', re.IGNORECASE),
+    re.compile(r'^Minimum payment', re.IGNORECASE),
+    re.compile(r'^Sisa Pagu', re.IGNORECASE),
+    re.compile(r'^Sisa Tagihan', re.IGNORECASE),
+    re.compile(r'^Remaining', re.IGNORECASE),
+    re.compile(r'^Kualitas Kredit', re.IGNORECASE),
+    re.compile(r'^Loan Performance', re.IGNORECASE),
+    re.compile(r'^Bunga Pembelanjaan', re.IGNORECASE),
+    re.compile(r'^Interest Rate', re.IGNORECASE),
+]
+
+
 def parse_amount(amount_str: str) -> float:
     """Convert comma-formatted amount string to float."""
     return float(amount_str.replace(',', ''))
@@ -141,6 +166,17 @@ def is_skip_line(line: str) -> bool:
     if not stripped:
         return True
     for pattern in RE_SKIP_PATTERNS:
+        if pattern.search(stripped):
+            return True
+    return False
+
+
+def is_footer_line(line: str) -> bool:
+    """Check if a line marks the start of the footer section."""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    for pattern in RE_FOOTER_PATTERNS:
         if pattern.search(stripped):
             return True
     return False
@@ -253,12 +289,15 @@ def parse_transaction_section(lines: list[str], start_idx: int) -> tuple[list[Tr
         if RE_CARD_NUMBER.match(line):
             continue
         
-        # Skip irrelevant lines
-        if is_skip_line(line):
-            # If we hit a disclaimer/footer area, finalize
-            if current_tx and (line.startswith('1 ') or 'Pagu Kredit' in line):
+        # Check if we've reached the footer
+        if is_footer_line(line):
+            if current_tx:
                 transactions.append(current_tx)
                 current_tx = None
+            break  # Footer marks the end of transactions on this page
+            
+        # Skip irrelevant lines
+        if is_skip_line(line):
             continue
         
         # Try to match a transaction line
